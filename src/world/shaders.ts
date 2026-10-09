@@ -211,19 +211,23 @@ void main() {
   float lightMap = texture2D(uLightMap, texCoord).r;
   float lakeMask = texture2D(uLakeMask, texCoord).r;
 
-  vec3 detailNormal = vec3(0.0);
-  vec3 unlitTerrainCol = vec3(0.0);
-  if (texCoord.x < 0.5) {
-    vec2 t = vec2(texCoord.x * 2.0, texCoord.y);
-    float mipLevel = calculateGeoMipLevel(t, uColTexSize);
-    unlitTerrainCol = textureLod(uColWest, t, mipLevel).rgb;
-    detailNormal = texture2D(uNormalWest, t).rgb;
-  } else {
-    vec2 t = vec2((texCoord.x - 0.5) * 2.0, texCoord.y);
-    float mipLevel = calculateGeoMipLevel(t, uColTexSize);
-    unlitTerrainCol = textureLod(uColEast, t, mipLevel).rgb;
-    detailNormal = texture2D(uNormalEast, t).rgb;
-  }
+  vec2 tWest = vec2(texCoord.x * 2.0, texCoord.y);
+  vec2 tEast = vec2((texCoord.x - 0.5) * 2.0, texCoord.y);
+  float mipWest = calculateGeoMipLevel(tWest, uColTexSize);
+  float mipEast = calculateGeoMipLevel(tEast, uColTexSize);
+  // Blend across the lon-0 tile seam (the west/east map halves don't line up pixel-perfect),
+  // otherwise a thin dark line is visible along the Greenwich meridian.
+  float seamBlend = smoothstep(-0.0025, 0.0025, texCoord.x - 0.5);
+  vec3 unlitTerrainCol = mix(
+    textureLod(uColWest, tWest, mipWest).rgb,
+    textureLod(uColEast, tEast, mipEast).rgb,
+    seamBlend
+  );
+  vec3 detailNormal = mix(
+    textureLod(uNormalWest, tWest, mipWest).rgb,
+    textureLod(uNormalEast, tEast, mipEast).rgb,
+    seamBlend
+  );
 
   detailNormal = normalize(detailNormal * 2.0 - 1.0);
   // The normal map stores object-space surface normals. Transform into the (Z-mirrored)

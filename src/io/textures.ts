@@ -12,7 +12,9 @@ const loader = new THREE.TextureLoader();
 
 export async function loadTexture(url: string, options: TextureOptions = {}): Promise<THREE.Texture> {
   const texture = await loader.loadAsync(url);
-  texture.wrapS = options.repeat ? THREE.RepeatWrapping : THREE.RepeatWrapping;
+  // Non-tiling maps (equirectangular terrain/ocean tiles) must clamp — wrapping the edge
+  // column causes a seam at the lon-0 tile split.
+  texture.wrapS = options.repeat ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
   texture.wrapT = options.repeat ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
