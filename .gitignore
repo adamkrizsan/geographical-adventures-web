@@ -1,0 +1,12 @@
+node_modules/
+dist/
+vendor/
+.DS_Store
+*.log
+
+# Converted game assets are large and not committed.
+public/assets/*
+!public/assets/README.md
+
+# Local browser-tooling artifacts (screenshots, etc.)
+.openchamber/

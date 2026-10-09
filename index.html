@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Geographical Adventures — Web</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ui: #eaf2ff;
+        --muted: #9fb2cc;
+        --accent: #7fd1ff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #03050a;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        color: var(--ui);
+      }
+      #game {
+        position: fixed;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .hud {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: space-between;
+        padding: 14px 18px;
+        pointer-events: none;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+        font-size: 13px;
+        line-height: 1.5;
+        transition: opacity 0.35s ease;
+      }
+      .hud.hidden {
+        opacity: 0;
+      }
+      .hud .label {
+        color: var(--muted);
+        margin-right: 6px;
+      }
+      .hud .value {
+        color: var(--accent);
+      }
+      .hud .col {
+        display: flex;
+        flex-direction: column;
+      }
+      .hud .right {
+        text-align: right;
+      }
+      .destination {
+        position: fixed;
+        top: 52px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 9px 20px;
+        background: rgba(8, 14, 24, 0.8);
+        border: 1px solid rgba(46, 204, 113, 0.5);
+        border-radius: 12px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+      }
+      .destination.visible {
+        opacity: 1;
+      }
+      .destination .dest-arrow {
+        font-size: 28px;
+        line-height: 1;
+        color: #2ecc71;
+        transition: transform 0.12s linear;
+      }
+      .destination .dest-label {
+        font-size: 10px;
+        letter-spacing: 0.2em;
+        color: var(--muted);
+      }
+      .destination .dest-city {
+        font-size: 22px;
+        font-weight: 700;
+        color: #eafff2;
+      }
+      .destination .dest-meta {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .controls {
+        position: fixed;
+        bottom: 66px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 16px 34px;
+        max-width: 94vw;
+        padding: 22px 32px;
+        background: rgba(8, 14, 24, 0.72);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 20px;
+        backdrop-filter: blur(3px);
+        transition: opacity 0.35s ease, transform 0.35s ease;
+        pointer-events: none;
+      }
+      .controls.hidden {
+        opacity: 0;
+        transform: translate(-50%, 30px) scale(0.96);
+      }
+      .ctrl {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .ctrl .keys {
+        display: flex;
+        gap: 6px;
+      }
+      .ctrl .label {
+        font-size: 22px;
+        color: var(--ui);
+      }
+      kbd {
+        font-size: 21px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        border-bottom-width: 3px;
+        border-radius: 8px;
+        padding: 6px 13px;
+        color: var(--ui);
+        min-width: 26px;
+        text-align: center;
+      }
+      kbd.h-key {
+        font-size: 27px;
+        padding: 8px 18px;
+        color: #04121f;
+        background: var(--accent);
+        border-color: var(--accent);
+        animation: h-pulse 1.5s ease-in-out infinite;
+      }
+      @keyframes h-pulse {
+        0%,
+        100% {
+          transform: scale(1);
+          box-shadow: 0 0 0 rgba(127, 209, 255, 0);
+        }
+        50% {
+          transform: scale(1.12);
+          box-shadow: 0 0 14px rgba(127, 209, 255, 0.8);
+        }
+      }
+      .h-badge {
+        position: fixed;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--muted);
+        transition: transform 0.35s ease, opacity 0.35s ease;
+        pointer-events: none;
+      }
+      .h-badge.small {
+        transform: translateX(-50%) scale(0.72);
+        opacity: 0.6;
+      }
+      .gauge {
+        position: fixed;
+        bottom: 10px;
+        width: 132px;
+        height: 132px;
+        pointer-events: none;
+        transition: opacity 0.35s ease;
+      }
+      .gauge.compass {
+        left: 14px;
+      }
+      .gauge.speedo {
+        right: 14px;
+      }
+      .gauge svg {
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+      }
+      .gauge .plate {
+        fill: rgba(8, 14, 24, 0.55);
+        stroke: rgba(255, 255, 255, 0.16);
+        stroke-width: 1.5;
+      }
+      .compass-label {
+        fill: var(--ui);
+        font-size: 12px;
+        font-weight: 700;
+        text-anchor: middle;
+        dominant-baseline: middle;
+      }
+      .compass-label.cardinal {
+        fill: #ff6b6b;
+      }
+      .compass-tick {
+        stroke: rgba(255, 255, 255, 0.4);
+        stroke-width: 1;
+      }
+      .compass-marker {
+        fill: var(--accent);
+      }
+      .gauge-arc-bg {
+        fill: none;
+        stroke: rgba(255, 255, 255, 0.16);
+        stroke-width: 6;
+        stroke-linecap: round;
+      }
+      .speed-arc {
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 6;
+        stroke-linecap: round;
+      }
+      .needle {
+        stroke: #ffd166;
+        stroke-width: 3;
+        stroke-linecap: round;
+      }
+      .needle-hub {
+        fill: #ffd166;
+      }
+      .boost-ring {
+        fill: none;
+        stroke-width: 5;
+        stroke-linecap: round;
+        transform: rotate(135deg);
+        transform-origin: 50px 50px;
+        stroke: #b0b0b0;
+      }
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: #03050a;
+        color: var(--muted);
+        z-index: 10;
+        transition: opacity 0.4s ease;
+      }
+      #boot.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: rgba(3, 5, 10, 0.86);
+        backdrop-filter: blur(6px);
+        z-index: 30;
+        transition: opacity 0.4s ease;
+      }
+      .modal-backdrop.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .modal {
+        max-width: 700px;
+        width: 100%;
+        max-height: 90vh;
+        overflow-y: auto;
+        background: linear-gradient(180deg, rgba(16, 24, 38, 0.98), rgba(10, 16, 26, 0.98));
+        border: 1px solid rgba(127, 209, 255, 0.28);
+        border-radius: 18px;
+        padding: 30px 34px;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+        text-align: left;
+        line-height: 1.65;
+        font-size: 15px;
+      }
+      .modal h1 {
+        margin: 0 0 14px;
+        font-size: 26px;
+        color: #eafff2;
+      }
+      .modal p {
+        margin: 0 0 12px;
+        color: #d8e4f5;
+      }
+      .modal strong {
+        color: #ffd166;
+      }
+      .modal .heart {
+        color: #ff6b81;
+      }
+      .modal-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 12px;
+        margin: 16px 0 22px;
+      }
+      .modal-links a {
+        color: #7fd1ff;
+        text-decoration: none;
+        border: 1px solid rgba(127, 209, 255, 0.35);
+        border-radius: 10px;
+        padding: 9px 14px;
+        font-size: 14px;
+        transition: background 0.2s ease, border-color 0.2s ease;
+      }
+      .modal-links a:hover {
+        background: rgba(127, 209, 255, 0.14);
+        border-color: rgba(127, 209, 255, 0.7);
+      }
+      .modal button {
+        font: inherit;
+        font-size: 17px;
+        font-weight: 700;
+        color: #04121f;
+        background: #ffd166;
+        border: none;
+        border-radius: 12px;
+        padding: 12px 24px;
+        cursor: pointer;
+        transition: transform 0.1s ease, background 0.2s ease;
+      }
+      .modal button:hover {
+        background: #ffe08a;
+      }
+      .modal button:active {
+        transform: scale(0.98);
+      }
+      .modal .fine {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 14px;
+      }
+      .quests {
+        position: fixed;
+        top: 84px;
+        left: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        pointer-events: none;
+      }
+      .quest {
+        background: rgba(8, 14, 24, 0.72);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-left: 4px solid var(--accent);
+        border-radius: 8px;
+        padding: 9px 14px;
+        min-width: 248px;
+      }
+      .quest.pickup {
+        border-left-color: #ffd166;
+      }
+      .quest.deliver {
+        border-left-color: #2ecc71;
+      }
+      .quest.done {
+        opacity: 0.4;
+      }
+      .quest-title {
+        font-size: 15px;
+        color: var(--ui);
+      }
+      .quest-sub {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .message {
+        position: fixed;
+        top: 16%;
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: 620px;
+        text-align: center;
+        background: rgba(8, 14, 24, 0.88);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        padding: 10px 16px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        font-size: 14px;
+        pointer-events: none;
+      }
+      .message.visible {
+        opacity: 1;
+      }
+      .status {
+        position: fixed;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 13px;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+        pointer-events: none;
+      }
+      .status .dot {
+        color: var(--muted);
+        margin: 0 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <div class="hud" id="hud-metrics" aria-hidden="true">
+      <div class="col">
+        <div><span class="label">POS</span><span class="value" id="hud-pos">--</span></div>
+        <div><span class="label">ALT</span><span class="value" id="hud-alt">--</span></div>
+      </div>
+      <div class="col right">
+        <div><span class="label">SPD</span><span class="value" id="hud-speed">--</span></div>
+        <div><span class="label">HEADING</span><span class="value" id="hud-heading">--</span></div>
+        <div><span class="label">FRAME</span><span class="value" id="hud-fps">--</span></div>
+      </div>
+    </div>
+
+    <div class="status">
+      <span class="value" id="timer">15:00</span><span class="dot">·</span><span class="value" id="score">score 0 · best 0</span>
+    </div>
+
+    <div class="quests" id="quests"></div>
+    <div class="message" id="message"></div>
+
+    <div class="destination" id="destination">
+      <div class="dest-arrow" id="dest-arrow">▲</div>
+      <div>
+        <div class="dest-label">DELIVER TO</div>
+        <div class="dest-city" id="dest-city">--</div>
+        <div class="dest-meta" id="dest-meta">--</div>
+      </div>
+    </div>
+
+    <div class="controls" id="controls">
+      <div class="ctrl"><span class="keys"><kbd>A</kbd><kbd>D</kbd></span><span class="label">steer</span></div>
+      <div class="ctrl"><span class="keys"><kbd>W</kbd><kbd>S</kbd></span><span class="label">pitch</span></div>
+      <div class="ctrl"><span class="keys"><kbd>Q</kbd><kbd>E</kbd></span><span class="label">speed</span></div>
+      <div class="ctrl"><span class="keys"><kbd>Shift</kbd></span><span class="label">boost</span></div>
+      <div class="ctrl"><span class="keys"><kbd>Space</kbd></span><span class="label">drop package</span></div>
+      <div class="ctrl"><span class="keys"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></span><span class="label">camera (fwd / back / top)</span></div>
+      <div class="ctrl"><span class="keys"><kbd>N</kbd></span><span class="label">nav aids</span></div>
+      <div class="ctrl"><span class="keys"><kbd class="h-key">H</kbd></span><span class="label">hide/show controls</span></div>
+      <div class="ctrl"><span class="keys"><kbd>Backspace</kbd><kbd>Enter</kbd></span><span class="label">day / night</span></div>
+    </div>
+    <div class="h-badge" id="h-badge"><kbd>H</kbd><span>controls</span></div>
+
+    <div class="gauge compass" id="compass-gauge">
+      <svg viewBox="0 0 100 100">
+        <circle class="plate" cx="50" cy="50" r="46" />
+        <g id="compass-dial">
+          <text class="compass-label cardinal" x="50" y="18">N</text>
+          <text class="compass-label" x="82" y="50">E</text>
+          <text class="compass-label" x="50" y="82">S</text>
+          <text class="compass-label" x="18" y="50">W</text>
+          <line class="compass-tick" x1="50" y1="7" x2="50" y2="12" />
+          <line class="compass-tick" x1="93" y1="50" x2="88" y2="50" />
+          <line class="compass-tick" x1="50" y1="93" x2="50" y2="88" />
+          <line class="compass-tick" x1="7" y1="50" x2="12" y2="50" />
+          <line class="compass-tick" x1="80" y1="20" x2="77" y2="23" />
+          <line class="compass-tick" x1="80" y1="80" x2="77" y2="77" />
+          <line class="compass-tick" x1="20" y1="80" x2="23" y2="77" />
+          <line class="compass-tick" x1="20" y1="20" x2="23" y2="23" />
+        </g>
+        <polygon class="compass-marker" points="50,3 45,11 55,11" />
+      </svg>
+    </div>
+
+    <div class="gauge speedo" id="speed-gauge">
+      <svg viewBox="0 0 100 100">
+        <circle class="plate" cx="50" cy="50" r="46" />
+        <circle class="boost-ring" id="boost-ring" cx="50" cy="50" r="43" />
+        <line class="needle" id="speed-needle" x1="50" y1="50" x2="50" y2="14" />
+        <circle class="needle-hub" cx="50" cy="50" r="4" />
+      </svg>
+    </div>
+
+    <div class="modal-backdrop" id="welcome">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+        <h1 id="welcome-title">Welcome to Geographical Adventures <span class="heart">&#9829;</span></h1>
+        <p>
+          This is a <strong>fan-made web port</strong> of <strong>Geographical Adventures</strong>,
+          a lovely little geography game by <strong>Sebastian Lague</strong>.
+        </p>
+        <p>
+          It exists for one simple reason: so that anyone can experience this amazing game right
+          here, in the browser, on any computer &mdash; no downloads, no setup, no Unity required.
+        </p>
+        <p>
+          <strong>Absolutely everything belongs to Sebastian Lague</strong> &mdash; the game, its design,
+          its art and its code are all his. This port is only a loving re-implementation built on top
+          of his open-source work. None of the credit is ours; all of it is his.
+        </p>
+        <p>
+          If it brings you even a little bit of joy, please support him and check out the original:
+        </p>
+        <div class="modal-links">
+          <a href="https://sebastian.itch.io/geographical-adventures" target="_blank" rel="noopener">
+            Play the original on itch.io
+          </a>
+          <a href="https://github.com/SebLague/Geographical-Adventures" target="_blank" rel="noopener">
+            Source code on GitHub
+          </a>
+          <a
+            href="https://www.youtube.com/watch?v=sLqXFF8mlEU&list=PLFt_AvWsXl0dT82XMtKATYPcVIhpu2fh6"
+            target="_blank"
+            rel="noopener"
+          >
+            Watch the dev series on YouTube
+          </a>
+        </div>
+        <button id="welcome-continue" type="button">Let&rsquo;s fly &#9992;</button>
+        <p class="fine">Thank you, Sebastian. <span class="heart">&#9829;</span></p>
+      </div>
+    </div>
+
+    <div id="boot">building globe…</div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
