@@ -352,6 +352,23 @@
         color: var(--muted);
         margin-top: 14px;
       }
+      .modal-footer {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+      }
+      .modal-source {
+        margin-left: auto;
+        font-size: 12px;
+        color: var(--muted);
+        text-decoration: none;
+        opacity: 0.7;
+        transition: opacity 0.2s ease;
+      }
+      .modal-source:hover {
+        opacity: 1;
+        text-decoration: underline;
+      }
       .quests {
         position: fixed;
         top: 84px;
@@ -529,7 +546,16 @@
           </a>
         </div>
         <button id="welcome-continue" type="button">Let&rsquo;s fly &#9992;</button>
-        <p class="fine">Thank you, Sebastian. <span class="heart">&#9829;</span></p>
+        <div class="modal-footer">
+          <p class="fine">Thank you, Sebastian. <span class="heart">&#9829;</span></p>
+          <a
+            class="modal-source"
+            href="https://github.com/adamkrizsan/geographical-adventures-web"
+            target="_blank"
+            rel="noopener"
+            >source</a
+          >
+        </div>
       </div>
     </div>
 
